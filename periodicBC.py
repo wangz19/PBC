@@ -1,7 +1,11 @@
 #coding:utf-8
 # This code is modifeid from J.T.B. Overvelde
 #2016/11/01 Zehai Wang for rectangular unitcell
-#Latest update 2016/11/15
+#Latest update 2016/11/17
+# this update permit use of rectangular unit cell and shear loading
+#2016/11/15
+#this update can only be applied on cubit unit cell with uniaxial loading
+
 # === Modules ===
 from math import *
 from part import *
@@ -63,9 +67,9 @@ lxc = 0.5*(x_min+x_max)
 lyc = 0.5*(y_min+y_max)
 lzc = 0.5*(z_min+z_max)
 # dimension of the unit cell
-lx = 0.5*(x_min+x_max)
-ly = 0.5*(y_min+y_max)
-lz = 0.5*(z_min+z_max)
+lx = x_max-x_min
+ly = x_max-x_min
+lz = z_max-z_min
 
 for i in range(len(node_cell[:,0])):
     if abs(node_cell[i][1]-x_min)<0.001:          # back surface
@@ -148,7 +152,15 @@ bl = list(set(bl)-set(coner_group))
 
 
 #Create reference parts and assemble
-NameRef1='RefPoint-1'; NameRef2='RefPoint-2'; NameRef3='RefPoint-3'
+# 6 reference points each represent strain component for 3D unit cell
+# RP-1 for U11
+# RP-2 for U22
+# RP-3 for U33
+# RP-4 for shear strain E23
+# RP-5 for shear strain E13
+# RP-6 
+NameRef1='RP-1'; NameRef2='RP-2'; NameRef3='RP-3'
+NameRef4='RP-4'; NameRef5='RP-5'; NameRef6='RP-6'
 m.Part(dimensionality=THREE_D, name=NameRef1, type=
                            DEFORMABLE_BODY)
 m.parts[NameRef1].ReferencePoint(point=(10.0, 0.0, 0.0))
@@ -158,13 +170,27 @@ m.parts[NameRef2].ReferencePoint(point=(20.0, 0.0, 0.0))
 m.Part(dimensionality=THREE_D, name=NameRef3, type=
                            DEFORMABLE_BODY)
 m.parts[NameRef3].ReferencePoint(point=(30.0, 0.0, 0.0))
+m.Part(dimensionality=THREE_D, name=NameRef4, type=
+                           DEFORMABLE_BODY)
+m.parts[NameRef4].ReferencePoint(point=(10.0, 10.0, 0.0))
+m.Part(dimensionality=THREE_D, name=NameRef5, type=
+                           DEFORMABLE_BODY)
+m.parts[NameRef5].ReferencePoint(point=(20.0, 10.0, 0.0))
+m.Part(dimensionality=THREE_D, name=NameRef6, type=
+                           DEFORMABLE_BODY)
+m.parts[NameRef6].ReferencePoint(point=(30.0, 10.0, 0.0))
 m.rootAssembly.Instance(dependent=ON, name=NameRef1,
                                             part=m.parts[NameRef1])
 m.rootAssembly.Instance(dependent=ON, name=NameRef2,
                                             part=m.parts[NameRef2])
 m.rootAssembly.Instance(dependent=ON, name=NameRef3,
                                             part=m.parts[NameRef3])
-
+m.rootAssembly.Instance(dependent=ON, name=NameRef4,
+                                            part=m.parts[NameRef4])
+m.rootAssembly.Instance(dependent=ON, name=NameRef5,
+                                            part=m.parts[NameRef5])
+m.rootAssembly.Instance(dependent=ON, name=NameRef6,
+                                            part=m.parts[NameRef6])
 #Create set of reference points
 m.rootAssembly.Set(name=NameRef1, referencePoints=(
     m.rootAssembly.instances[NameRef1].referencePoints[1],))
@@ -172,6 +198,12 @@ m.rootAssembly.Set(name=NameRef2, referencePoints=(
     m.rootAssembly.instances[NameRef2].referencePoints[1],))
 m.rootAssembly.Set(name=NameRef3, referencePoints=(
     m.rootAssembly.instances[NameRef3].referencePoints[1],))
+m.rootAssembly.Set(name=NameRef4, referencePoints=(
+    m.rootAssembly.instances[NameRef4].referencePoints[1],))
+m.rootAssembly.Set(name=NameRef5, referencePoints=(
+    m.rootAssembly.instances[NameRef5].referencePoints[1],))
+m.rootAssembly.Set(name=NameRef6, referencePoints=(
+    m.rootAssembly.instances[NameRef6].referencePoints[1],))
 
 # function calculate distance between two node in given node list
 # def distance( node list with nodeID and x,y,z, nodeID_1, nodeID_2):
@@ -186,18 +218,12 @@ def distance( node_cell, nodeID_1, nodeID_2):
     d = np.sqrt((x1-x2)**2+(y1-y2)**2+(z1-z2)**2)
     return d
 
-
-def PBC_constrain (node_cell,node_set_1,node_set_2,dof_1,dof_2,dof_3,ReferencePoint,set_name):
+def PBC_constrain (node_cell,node_set_1,node_set_2,dof_1,dof_2,dof_3,RP1,RP2,RP3,set_name):
     # node_cell is collection of all the nodes and coordinates
     # node_set_1 and _2 are opposite boundaries
     # pairing nodes in two opposite surface
     # where the node number on the two face need not to be equal
     # number of pair depend on the min node of the two surface
-    # m=mdb.models['Model-1']
-    # r=m.rootAssembly
-    # node=r.instances['Part-1-1'].nodes
-    # pair_num = min(len(nb),len(nf))
-    # print pair_num
     pair = []    #temp position for front and back surface
     for x in node_set_1:
         mindist     = float("inf")  #initialize distance as infinite large
@@ -217,44 +243,44 @@ def PBC_constrain (node_cell,node_set_1,node_set_2,dof_1,dof_2,dof_3,ReferencePo
         r.Set(nodes=node[pair[i][1]-1:pair[i][1]],name='set1_'+set_name+str(i+1))
         #Given the MPC on
         if dof_1 == 1:
-            m.Equation(name=set_name+'_dof_1_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),1),(-1.0,'set1_'+set_name+str(i+1),1),(-1.0, ReferencePoint, 1)))
+            m.Equation(name=set_name+'_dof_1_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),1),(-1.0,'set1_'+set_name+str(i+1),1),(-1.0, RP1, 1)))
         if dof_2 == 1:
-            m.Equation(name=set_name+'_dof_2_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),2),(-1.0,'set1_'+set_name+str(i+1),2),(-1.0, ReferencePoint, 2)))
+            m.Equation(name=set_name+'_dof_2_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),2),(-1.0,'set1_'+set_name+str(i+1),2),(-1.0, RP2, 2)))
         if dof_3 == 1:
-            m.Equation(name=set_name+'_dof_3_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),3),(-1.0,'set1_'+set_name+str(i+1),3),(-1.0, ReferencePoint, 3)))
+            m.Equation(name=set_name+'_dof_3_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),3),(-1.0,'set1_'+set_name+str(i+1),3),(-1.0, RP3, 3)))
 
 #def PBC_constrain (node_cell,nb,nf,coefficient_1,coefficient_2,dof_1,dof_2,dof_3):
 # creat surface constrain equations
 start1 = time.time()
-PBC_constrain (node_cell,nf,nb,1,1,1,'RefPoint-1','fb')
-PBC_constrain (node_cell,nr,nl,1,1,1,'RefPoint-2','rl')
-PBC_constrain (node_cell,nu,nd,1,1,1,'RefPoint-3','ud')
+PBC_constrain (node_cell,nf,nb,1,1,1,'RP-1','fb')
+PBC_constrain (node_cell,nr,nl,1,1,1,'RP-2','rl')
+PBC_constrain (node_cell,nu,nd,1,1,1,'RP-3','ud')
 
 #creat edge constrain equations
 # Y-Z
-PBC_constrain (node_cell,ru,lu,1,1,1,'RefPoint-2','edge_rlu')
-PBC_constrain (node_cell,lu,ld,1,1,1,'RefPoint-3','edge_udl')
-PBC_constrain (node_cell,rd,ld,1,1,1,'RefPoint-2','edge_rld')
+PBC_constrain (node_cell,ru,lu,1,1,1,'RP-2','edge_rlu')
+PBC_constrain (node_cell,lu,ld,1,1,1,'RP-3','edge_udl')
+PBC_constrain (node_cell,rd,ld,1,1,1,'RP-2','edge_rld')
 #X-Z
-PBC_constrain (node_cell,fu,bu,1,1,1,'RefPoint-1','edge_fbu')
-PBC_constrain (node_cell,bu,bd,1,1,1,'RefPoint-3','edge_bud')
-PBC_constrain (node_cell,fd,bd,1,1,1,'RefPoint-1','edge_fbd')
+PBC_constrain (node_cell,fu,bu,1,1,1,'RP-1','edge_fbu')
+PBC_constrain (node_cell,bu,bd,1,1,1,'RP-3','edge_bud')
+PBC_constrain (node_cell,fd,bd,1,1,1,'RP-1','edge_fbd')
 #X-Y
-PBC_constrain (node_cell,rb,bl,1,1,1,'RefPoint-2','edge_rbl')
-PBC_constrain (node_cell,lf,bl,1,1,1,'RefPoint-1','edge_lfb')
-PBC_constrain (node_cell,fr,lf,1,1,1,'RefPoint-2','edge_frl')
+PBC_constrain (node_cell,rb,bl,1,1,1,'RP-2','edge_rbl')
+PBC_constrain (node_cell,lf,bl,1,1,1,'RP-1','edge_lfb')
+PBC_constrain (node_cell,fr,lf,1,1,1,'RP-2','edge_frl')
 
 #Create cornor constrains
 for i in range(8):
     r.Set(nodes=node[coner_group[i]-1:coner_group[i]],name='c_'+str(i+1)) # front left corner (x+,0,0)
 
-PBC_constrain (node_cell,nc_5,nc_8,1,1,1,'RefPoint-1','cp_1')
-PBC_constrain (node_cell,nc_6,nc_7,1,1,1,'RefPoint-1','cp_2')
-PBC_constrain (node_cell,nc_2,nc_3,1,1,1,'RefPoint-1','cp_3')
-PBC_constrain (node_cell,nc_1,nc_4,1,1,1,'RefPoint-1','cp_4')
-PBC_constrain (node_cell,nc_7,nc_8,1,1,1,'RefPoint-2','cp_5')
-PBC_constrain (node_cell,nc_3,nc_4,1,1,1,'RefPoint-2','cp_6')
-PBC_constrain (node_cell,nc_8,nc_4,1,1,1,'RefPoint-3','cp_7')
+PBC_constrain (node_cell,nc_5,nc_8,1,1,1,'RP-1','cp_1')
+PBC_constrain (node_cell,nc_6,nc_7,1,1,1,'RP-1','cp_2')
+PBC_constrain (node_cell,nc_2,nc_3,1,1,1,'RP-1','cp_3')
+PBC_constrain (node_cell,nc_1,nc_4,1,1,1,'RP-1','cp_4')
+PBC_constrain (node_cell,nc_7,nc_8,1,1,1,'RP-2','cp_5')
+PBC_constrain (node_cell,nc_3,nc_4,1,1,1,'RP-2','cp_6')
+PBC_constrain (node_cell,nc_8,nc_4,1,1,1,'RP-3','cp_7')
 
 # # move 3 dof for rigid body motion
 region=m. rootAssembly . sets [ 'c_4' ]
