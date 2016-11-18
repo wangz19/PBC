@@ -158,7 +158,8 @@ bl = list(set(bl)-set(coner_group))
 # RP-3 for U33
 # RP-4 for shear strain E23
 # RP-5 for shear strain E13
-# RP-6 
+# RP-6 for shear strain E12
+# ALL THE values are defined in the first dof of the reference point
 NameRef1='RP-1'; NameRef2='RP-2'; NameRef3='RP-3'
 NameRef4='RP-4'; NameRef5='RP-5'; NameRef6='RP-6'
 m.Part(dimensionality=THREE_D, name=NameRef1, type=
@@ -218,7 +219,7 @@ def distance( node_cell, nodeID_1, nodeID_2):
     d = np.sqrt((x1-x2)**2+(y1-y2)**2+(z1-z2)**2)
     return d
 
-def PBC_constrain (node_cell,node_set_1,node_set_2,dof_1,dof_2,dof_3,RP1,RP2,RP3,set_name):
+def PBC_constrain (node_cell,node_set_1,node_set_2,coeff_3,RP1,RP2,RP3,set_name):
     # node_cell is collection of all the nodes and coordinates
     # node_set_1 and _2 are opposite boundaries
     # pairing nodes in two opposite surface
@@ -242,45 +243,42 @@ def PBC_constrain (node_cell,node_set_1,node_set_2,dof_1,dof_2,dof_3,RP1,RP2,RP3
                                                                                 #tuple form, ie nodes= node[0:1],select node[1]
         r.Set(nodes=node[pair[i][1]-1:pair[i][1]],name='set1_'+set_name+str(i+1))
         #Given the MPC on
-        if dof_1 == 1:
-            m.Equation(name=set_name+'_dof_1_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),1),(-1.0,'set1_'+set_name+str(i+1),1),(-1.0, RP1, 1)))
-        if dof_2 == 1:
-            m.Equation(name=set_name+'_dof_2_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),2),(-1.0,'set1_'+set_name+str(i+1),2),(-1.0, RP2, 2)))
-        if dof_3 == 1:
-            m.Equation(name=set_name+'_dof_3_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),3),(-1.0,'set1_'+set_name+str(i+1),3),(-1.0, RP3, 3)))
+        m.Equation(name=set_name+'_dof_1_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),1),(-1.0,'set1_'+set_name+str(i+1),1),(-1.0*coeff_3, RP1, 1)))
+        m.Equation(name=set_name+'_dof_2_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),2),(-1.0,'set1_'+set_name+str(i+1),2),(-1.0*coeff_3, RP2, 1)))
+        m.Equation(name=set_name+'_dof_3_'+str(i+1),terms=((1.0,'set0_'+set_name+str(i+1),3),(-1.0,'set1_'+set_name+str(i+1),3),(-1.0*coeff_3, RP3, 1)))
 
-#def PBC_constrain (node_cell,nb,nf,coefficient_1,coefficient_2,dof_1,dof_2,dof_3):
+#def PBC_constrain (node_cell,node_set_1,node_set_2,coeff_3,RP1,RP2,RP3,set_name):
 # creat surface constrain equations
 start1 = time.time()
-PBC_constrain (node_cell,nf,nb,1,1,1,'RP-1','fb')
-PBC_constrain (node_cell,nr,nl,1,1,1,'RP-2','rl')
-PBC_constrain (node_cell,nu,nd,1,1,1,'RP-3','ud')
+PBC_constrain (node_cell,nf,nb,lx,'RP-1','RP-6','RP-5','fb')
+PBC_constrain (node_cell,nr,nl,ly,'RP-6','RP-2','RP-4','rl')
+PBC_constrain (node_cell,nu,nd,lz,'RP-5','RP-4','RP-3','ud')
 
 #creat edge constrain equations
 # Y-Z
-PBC_constrain (node_cell,ru,lu,1,1,1,'RP-2','edge_rlu')
-PBC_constrain (node_cell,lu,ld,1,1,1,'RP-3','edge_udl')
-PBC_constrain (node_cell,rd,ld,1,1,1,'RP-2','edge_rld')
+PBC_constrain (node_cell,ru,lu,ly,'RP-6','RP-2','RP-4','edge_rlu')
+PBC_constrain (node_cell,lu,ld,lz,'RP-5','RP-4','RP-3','edge_udl')
+PBC_constrain (node_cell,rd,ld,ly,'RP-6','RP-2','RP-4','edge_rld')
 #X-Z
-PBC_constrain (node_cell,fu,bu,1,1,1,'RP-1','edge_fbu')
-PBC_constrain (node_cell,bu,bd,1,1,1,'RP-3','edge_bud')
-PBC_constrain (node_cell,fd,bd,1,1,1,'RP-1','edge_fbd')
+PBC_constrain (node_cell,fu,bu,lx,'RP-1','RP-6','RP-5','edge_fbu')
+PBC_constrain (node_cell,bu,bd,lz,'RP-5','RP-4','RP-3','edge_bud')
+PBC_constrain (node_cell,fd,bd,lx,'RP-1','RP-6','RP-5','edge_fbd')
 #X-Y
-PBC_constrain (node_cell,rb,bl,1,1,1,'RP-2','edge_rbl')
-PBC_constrain (node_cell,lf,bl,1,1,1,'RP-1','edge_lfb')
-PBC_constrain (node_cell,fr,lf,1,1,1,'RP-2','edge_frl')
+PBC_constrain (node_cell,rb,bl,ly,'RP-6','RP-2','RP-4','edge_rbl')
+PBC_constrain (node_cell,lf,bl,lx,'RP-1','RP-6','RP-5','edge_lfb')
+PBC_constrain (node_cell,fr,lf,ly,'RP-6','RP-2','RP-4','edge_frl')
 
 #Create cornor constrains
 for i in range(8):
     r.Set(nodes=node[coner_group[i]-1:coner_group[i]],name='c_'+str(i+1)) # front left corner (x+,0,0)
 
-PBC_constrain (node_cell,nc_5,nc_8,1,1,1,'RP-1','cp_1')
-PBC_constrain (node_cell,nc_6,nc_7,1,1,1,'RP-1','cp_2')
-PBC_constrain (node_cell,nc_2,nc_3,1,1,1,'RP-1','cp_3')
-PBC_constrain (node_cell,nc_1,nc_4,1,1,1,'RP-1','cp_4')
-PBC_constrain (node_cell,nc_7,nc_8,1,1,1,'RP-2','cp_5')
-PBC_constrain (node_cell,nc_3,nc_4,1,1,1,'RP-2','cp_6')
-PBC_constrain (node_cell,nc_8,nc_4,1,1,1,'RP-3','cp_7')
+PBC_constrain (node_cell,nc_5,nc_8,lx,'RP-1','RP-6','RP-5','cp_1')
+PBC_constrain (node_cell,nc_6,nc_7,lx,'RP-1','RP-6','RP-5','cp_2')
+PBC_constrain (node_cell,nc_2,nc_3,lx,'RP-1','RP-6','RP-5','cp_3')
+PBC_constrain (node_cell,nc_1,nc_4,lx,'RP-1','RP-6','RP-5','cp_4')
+PBC_constrain (node_cell,nc_7,nc_8,ly,'RP-6','RP-2','RP-4','cp_5')
+PBC_constrain (node_cell,nc_3,nc_4,ly,'RP-6','RP-2','RP-4','cp_6')
+PBC_constrain (node_cell,nc_8,nc_4,lz,'RP-5','RP-4','RP-3','cp_7')
 
 # # move 3 dof for rigid body motion
 region=m. rootAssembly . sets [ 'c_4' ]
