@@ -17,5 +17,6 @@ Rigid body motion is eliminated by fix 3 DOF in cp-4 (min(x,y,z) corner point)
 
 Hope that will help!!
 
-###update20161129:
-####PeriodicBC.py is currently the excutible 
+####Update20161129:
+#####PeriodicBC.py is currently the excutible code, you need to modify the fileName and assembly name
+#####Note: current version can only be apply to cubic and rectangular unit cell model
