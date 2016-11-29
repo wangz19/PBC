@@ -1,7 +1,8 @@
+#PBC unit-cell in ABAQUS
 This repository apply periodical boundary condition (PBC) in ABAQUS 6.14
-other version in not teste
+other version in not tested
 
-You need unitcell with matching node on the opposite surfaces, the code will automatically creat node_sets
+You need unitcell with matching nodes on the opposite surfaces, the code will automatically creat node_sets
 and use multiple points constrain to apply PBC with reference point.
 
 Note: strain is asscoiated with DOF1 in each reference points:
