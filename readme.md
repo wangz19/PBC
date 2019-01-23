@@ -1,6 +1,8 @@
-#PBC unit-cell in ABAQUS
-This repository apply periodical boundary condition (PBC) in ABAQUS 6.14
-other version in not tested
+# PBC unit-cell in ABAQUS
+
+Applying __periodical boundary condition (PBC)__ is easy in molecular dynamic simulation. However, applying PBC in FEM packages, especially with non-matching mesh (often for cases with stochastic inclusions) is not trivial. This repository is a small program help applying PBC in ABAQUS 6.14, with python 2.7 and python 3.0+.
+
+The main file:
 
 You need unitcell with matching nodes on the opposite surfaces, the code will automatically creat node_sets
 and use multiple points constrain to apply PBC with reference point.
